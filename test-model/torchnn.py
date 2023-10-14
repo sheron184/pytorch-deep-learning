@@ -1,37 +1,43 @@
+import torch
 from torch import nn
 import torch.optim as optim
 from torchtext.data import Field, TabularDataset, BucketIterator
-
+import spacy 
+from transformers import AutoTokenizer
+from torchvision.transforms import ToTensor
+from transformers import TextClassificationPipeline
+ 
 # Hyperparameters
 EPOCHS = 10  # epoch
 LR = 5  # learning rate
 BATCH_SIZE = 2  # batch size for training
 
-tokenize = lambda x: x.split()
-quote = Field(sequential=True, use_vocab=True, tokenize=tokenize, lower=True)
+spacy_en = spacy.load('en_core_web_sm')
+
+tokenize = lambda x: x.split() 
+quote = Field(sequential=True, use_vocab=True, tokenize=tokenize, lower=True) 
 score = Field(sequential=False, use_vocab=False)
 
-fields = {'quote': ('q', quote), 'score': ('s', score)}
+fields = {'quote':('q', quote), 'score':('s', score)}
 
 train_data, test_data = TabularDataset.splits(
-    path='',
-    train='train.json',
-    test='test.json',
-    format='json',
-    fields=fields)
+                                    path ='',
+                                    train ='train.json',
+                                    test=  'test.json',
+                                    format ='json',
+                                    fields = fields)
 
 
-# print(train_data[0].__dict__.keys())
-# print(train_data[0].__dict__.values())
-
-quote.build_vocab(train_data, max_size=10000, min_freq=1)
-score.build_vocab(train_data, max_size=10000, min_freq=1)
-
+quote.build_vocab(train_data, 
+                    max_size=10000,
+                    min_freq=1)
+# score.build_vocab(train_data, max_size=10, min_freq=1)
 
 train_iterator, test_iterator = BucketIterator.splits(
     (train_data, test_data),
-    batch_size=2,
-    device="cpu")
+    batch_size=1,
+    device="cpu"
+)
 
 
 class TextClassificationModel(nn.Module):
@@ -64,9 +70,8 @@ for epoch in range(EPOCHS):
     for batch in train_iterator:
         optimizer.zero_grad()
         text = batch.q
-        target = batch.s.view(-1)  # Flatten the target tensor
         predictions = model(text)
-        loss = criterion(predictions.squeeze(1), target.float())
+        loss = criterion(predictions.squeeze(1), batch.s.float())
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -74,11 +79,7 @@ for epoch in range(EPOCHS):
     print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {total_loss / len(train_iterator):.4f}")
 
 
+# Make predictions
 
-# for batch in train_iterator:
-#     print(batch.s)
-#     pass
-
-# for d in test_data:
-#     pass
-#     #print(f"[quote:{d.q} , score:{d.s}]")
+# Preprocess the input text
+input_text = 'Bel'
